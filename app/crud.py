@@ -3,17 +3,19 @@ from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
+from app.dependencies import verify_password, get_password_hash
 from . import models, schemas
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
-def get_password_hash(password):
-    return pwd_context.hash(password)
-
-
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
+async def authenticate_user(db: AsyncSession, username: str, password: str):
+    user = get_user_by_username(db, username)
+    if not isinstance(user, schemas.User):
+        return False
+    if not verify_password(password, user.hashed_password):
+        return False
+    return user
 
 
 async def get_user(db: AsyncSession, user_id: int):
@@ -28,13 +30,13 @@ async def get_user_by_username(db: AsyncSession, username: str):
 
 async def create_user(db: AsyncSession, user: schemas.UserCreate):
     try:
-        hashed_password = await get_password_hash(user.password)
+        hashed_password = get_password_hash(user.password)
         db_user = models.User(
             username=user.username,
-            full_name=user.full_name,
             email=user.email,
             hashed_password=hashed_password
         )
+        # print(db_user)
         db.add(db_user)
         await db.commit()
         await db.refresh(db_user)
