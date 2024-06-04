@@ -2,42 +2,49 @@
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from sqlalchemy.exc import
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from .. import schemas, crud, dependencies
+from app.database import get_db
+from app.models import User as UserModel
+from .. import crud
 
 router = APIRouter()
 
 
-@router.get("/admins/users/", response_model=List[schemas.User])
-async def read_users(skip: int = 0, limit: int = 10, db: Session = Depends(dependencies.get_db),
-                     current_user: schemas.User = Depends(dependencies.get_current_active_admin)):
-    users = crud.get_users(db, skip=skip, limit=limit)
+@router.get("/users", response_model=List[UserModel])
+async def read_users(skip: int = 0, limit: int = 10, db: AsyncSession = Depends(get_db)):
+    users = await crud.get_all_users(db, skip=skip, limit=limit)
     return users
 
 
-@router.patch("/admins/users/{user_id}/block", response_model=schemas.User)
-async def block_user(user_id: int, db: AsyncSession = Depends(dependencies.get_db),
-                     current_user: schemas.User = Depends(dependencies.get_current_active_admin)):
-    user = crud.get_user(db, user_id=user_id)
+@router.get("/users/{user_id}/api")
+async def get_user_owned_apis(user_id: int, db: AsyncSession = Depends(get_db)):
+    user = await crud.get_user(db, user_id=user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    api_services = await crud.get_api_services(db, user_id)
+    return api_services
+
+
+@router.patch("/users/{user_id}/block", response_model=UserModel)
+async def block_user(user_id: int, db: AsyncSession = Depends(get_db)):
+    user = await crud.get_user(db, user_id=user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     user.is_active = False
-    db.commit()
-    db.refresh(user)
+    await db.commit()
+    await db.refresh(user)
     return user
 
 
-@router.patch("/admins/users/{user_id}/unblock", response_model=schemas.User)
-async def unblock_user(user_id: int, db: Session = Depends(dependencies.get_db),
-                       current_user: schemas.User = Depends(dependencies.get_current_active_admin)):
+@router.patch("/users/{user_id}/unblock", response_model=UserModel)
+async def unblock_user(user_id: int, db: AsyncSession = Depends(get_db)):
     user = crud.get_user(db, user_id=user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     user.is_active = True
-    db.commit()
-    db.refresh(user)
+    await db.commit()
+    await db.refresh(user)
     return user
 
 # Other endpoints for granting/removing access, viewing activities, etc.

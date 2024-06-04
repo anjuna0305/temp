@@ -18,6 +18,11 @@ async def authenticate_user(db: AsyncSession, username: str, password: str):
     return user
 
 
+async def get_all_users(db: AsyncSession, skip: int, limit: int):
+    results = await db.execute(select(models.User).offset(skip).limit(limit))
+    return results.scalars().all()
+
+
 async def get_user(db: AsyncSession, user_id: int):
     result = await db.execute(select(models.User).filter(user_id == models.User.id))
     return result.scalars().first()
@@ -34,7 +39,8 @@ async def create_user(db: AsyncSession, user: schemas.UserCreate):
         db_user = models.User(
             username=user.username,
             email=user.email,
-            hashed_password=hashed_password
+            hashed_password=hashed_password,
+            scopes=user.scopes
         )
         # print(db_user)
         db.add(db_user)
@@ -103,10 +109,10 @@ async def create_activity_log(db: AsyncSession, activity_log: schemas.ActivityLo
     return db_activity_log
 
 
-async def authenticate_user(db: AsyncSession, username: str, password: str):
-    user = await get_user_by_username(db, username)
-    if not user:
-        return False
-    if not verify_password(password, user.hashed_password):
-        return False
-    return user
+# async def authenticate_user(db: AsyncSession, username: str, password: str):
+#     user = await get_user_by_username(db, username)
+#     if not user:
+#         return False
+#     if not verify_password(password, user.hashed_password):
+#         return False
+#     return user

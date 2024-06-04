@@ -4,20 +4,26 @@ from typing import Optional, Union
 from pydantic import BaseModel
 
 
+# user schemas----------------------------------------------------------------------------------------------------------
+# user base schema
 class UserBase(BaseModel):
     username: str
     email: str
 
 
+# create user request schema
 class UserCreate(UserBase):
+    scopes: str
     password: str
 
 
+# update userschema
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     password: Optional[str] = None
 
 
+# complete user class
 class User(UserBase):
     id: int
     is_active: bool
@@ -27,13 +33,17 @@ class User(UserBase):
         from_attributes = True  # Update to use from_attributes
 
 
+# token schemas---------------------------------------------------------------------------------------------------------
+# Token base class
 class Token(BaseModel):
     access_token: str
     token_type: str
 
 
+# Token data class
 class TokenData(BaseModel):
     username: Union[str, None] = None
+    scopes: list[str] = []
 
 
 class APIServiceBase(BaseModel):
