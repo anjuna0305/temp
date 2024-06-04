@@ -1,4 +1,5 @@
 # app/routers/auth.py
+import os
 from datetime import timedelta
 from typing import Annotated
 
@@ -6,7 +7,6 @@ from fastapi import APIRouter, Depends, HTTPException, Security
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import ACCESS_TOKEN_EXPIRE_MINUTES
 from app.auth import create_access_token, authenticate_user, get_current_user, get_current_active_admin
 from app.database import get_db
 from app.exeptions_handlers import InternalServerError
@@ -38,7 +38,7 @@ async def login_for_token(
     user = await authenticate_user(db, form_data.username, form_data.password)
     if not isinstance(user, User):
         raise HTTPException(status_code=400, detail="Incorrect username or password")
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token_expires = timedelta(minutes=int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES")))
     access_token = create_access_token(
         data={"sub": user.username, "scopes": [user.scopes], "email": user.email},
         expires_delta=access_token_expires,

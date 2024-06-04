@@ -1,4 +1,3 @@
-# app/crud.py
 from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
