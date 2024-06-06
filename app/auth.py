@@ -31,7 +31,9 @@ async def authenticate_user(db: AsyncSession, username: str, password: str):
 
 
 async def get_current_user(
-        security_scopes: SecurityScopes, token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)
+    security_scopes: SecurityScopes,
+    token: str = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(get_db),
 ):
     if security_scopes.scopes:
         authenticate_value = f'Bearer scope="{security_scopes.scope_str}"'
@@ -43,7 +45,9 @@ async def get_current_user(
         headers={"WWW-Authenticate": authenticate_value},
     )
     try:
-        payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
+        payload = jwt.decode(
+            token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+        )
         print(payload)
         username: str = payload.get("sub")
         if username is None:
@@ -52,9 +56,11 @@ async def get_current_user(
         token_data = TokenData(scopes=token_scopes, username=username)
     except (InvalidTokenError, ValidationError):
         raise credentials_exception
+
     user = await get_user_by_username(db, username=token_data.username)
     if user is None:
         raise credentials_exception
+
     for scope in security_scopes.scopes:
         if scope not in token_data.scopes:
             raise HTTPException(
@@ -62,16 +68,21 @@ async def get_current_user(
                 detail="Not enough permissions",
                 headers={"WWW-Authenticate": authenticate_value},
             )
+
     return user
 
 
-async def get_current_active_admin(current_user: UserModel = Security(get_current_user, scopes=["admin"])):
+async def get_current_active_admin(
+    current_user: UserModel = Security(get_current_user, scopes=["admin"])
+):
     if current_user.disabled:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
 
-async def get_current_active_user(current_user: UserModel = Security(get_current_user, scopes=["regular_user"])):
+async def get_current_active_user(
+    current_user: UserModel = Security(get_current_user, scopes=["regular_user"])
+):
     if current_user.disabled:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
@@ -83,7 +94,11 @@ def create_access_token(data: dict, expires_delta: Union[timedelta, None] = None
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES")))
+        expire = datetime.now(timezone.utc) + timedelta(
+            minutes=int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
+        )
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, os.getenv("SECRET_KEY"), algorithm=os.getenv("ALGORITHM"))
+    encoded_jwt = jwt.encode(
+        to_encode, os.getenv("SECRET_KEY"), algorithm=os.getenv("ALGORITHM")
+    )
     return encoded_jwt
