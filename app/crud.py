@@ -1,4 +1,5 @@
 from passlib.context import CryptContext
+from sqlalchemy import or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -33,7 +34,9 @@ async def get_user(db: AsyncSession, user_id: int):
 # get a user by username--------------------tested and copy inn test_router
 async def get_user_by_username(db: AsyncSession, username: str):
     result = await db.execute(
-        select(models.User).filter(username == models.User.username)
+        select(models.User).filter(
+            or_(username == models.User.username, username == models.User.email)
+        )
     )
     return result.scalars().first()
 
@@ -131,11 +134,11 @@ async def get_user_api_services_by_api_id(db: AsyncSession, api_id: int):
                 "status": user_api_service.status,
                 "request_per_action": user_api_service.request_per_action,
                 "created_at": user_api_service.created_at,
-                "exp_date": user_api_service.exp_date
-            }
+                "exp_date": user_api_service.exp_date,
+            },
         }
         response.append(user_data)
-    
+
     return response
 
 

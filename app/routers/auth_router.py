@@ -35,13 +35,16 @@ async def create_user(
 
 
 # @router.post("/login", status_code=200)
-@router.post("/token")
+@router.post("/token", status_code=200)
 async def login_for_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     db: AsyncSession = Depends(get_db),
 ) -> schemas.Token:
+    print("point 1")
     user = await authenticate_user(db, form_data.username, form_data.password)
+    print("username: ", user.username)
     if not isinstance(user, User):
+        print("point 2")
         raise HTTPException(status_code=400, detail="Incorrect username or password")
     access_token_expires = timedelta(
         minutes=int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
@@ -58,7 +61,7 @@ async def validateToken(current_user: User = Depends(get_current_user)):
     return current_user
 
 
-@router.get("/status/")
+@router.get("/current-user")
 async def read_system_status(current_user: User = Depends(get_current_user)):
     return current_user
 
