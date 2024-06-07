@@ -79,14 +79,14 @@ async def get_api_services(db: AsyncSession, skip: int, limit: int):
     return result.scalars().all()
 
 
-async def get_api_service_by_id(db: AsyncSession, id: int):
-    result = await db.execute(select(models.APIService).filter(id=models.APIService.id))
+async def get_api_service_by_id(db: AsyncSession, api_id: int):
+    result = await db.execute(select(models.APIService).filter(api_id==models.APIService.id))
     return result.scalars().first()
 
 
 async def get_api_service_by_name(db: AsyncSession, name: str):
     result = await db.execute(
-        select(models.APIService).filter(name=models.APIService.name)
+        select(models.APIService).filter(name==models.APIService.name)
     )
     return result.scalars().first()
 

@@ -5,14 +5,22 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from .. import schemas, crud, dependencies
-from app.database import get_db 
+from app.database import get_db
 
 router = APIRouter()
 
 
 @router.get("/api-services/", response_model=List[schemas.APIService])
-async def read_api_services(skip: int = 0, limit: int = 20, db: Session = Depends(get_db)):
+async def read_api_services(
+    skip: int = 0, limit: int = 20, db: Session = Depends(get_db)
+):
     api_services = await crud.get_api_services(db, skip=skip, limit=limit)
+    return api_services
+
+
+@router.get("/api-service/{service_id}")
+async def read_api_services(service_id: int, db: Session = Depends(get_db)):
+    api_services = await crud.get_api_service_by_id(db, service_id)
     return api_services
 
 
