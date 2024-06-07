@@ -9,6 +9,7 @@ from app.models import Base
 # from app.routers import admins
 from app.routers.auth_router import router as auth_router
 from app.routers.test_router import router as test_router
+from app.routers.api_services_router import router as api_router
 
 app = FastAPI()
 
@@ -39,4 +40,4 @@ app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(test_router, prefix="/test", tags=["test"])
 # app.include_router(users.router, prefix="/users", tags=["users"])
 # app.include_router(admins.router, prefix="/admins", tags=["admins"])
-# app.include_router(api_services.router, prefix="/api-services", tags=["api_services"])
+app.include_router(api_router, prefix="/api", tags=["api_services"])
