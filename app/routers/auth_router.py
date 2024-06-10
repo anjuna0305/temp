@@ -14,7 +14,7 @@ from app.auth import (
     get_current_active_admin,
 )
 from app.database import get_db
-from app.exeptions_handlers import InternalServerError
+from app.exeptions_handlers import InternalServerError, ConflictError
 from app.models import User
 from .. import schemas, crud
 
@@ -27,11 +27,21 @@ async def create_user(
 ):
     # return user_data
     try:
-        print(user_data)
+        # search for already exising username or email
+        user_by_username = await crud.get_user_by_username(db, user_data.username)
+        print(user_by_username)
+        if user_by_username:
+            raise ConflictError(detail="Username already exist!")
+
+        user_by_email = await crud.get_user_by_email(db, user_data.email)
+        if user_by_email:
+            raise ConflictError(detail="Email already in use!")
+
         user = await crud.create_user(db=db, user=user_data)
         return schemas.UserBase(username=user.username, email=user.email)
+
     except Exception as e:
-        raise InternalServerError()
+        raise e
 
 
 # @router.post("/login", status_code=200)
@@ -40,11 +50,9 @@ async def login_for_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     db: AsyncSession = Depends(get_db),
 ) -> schemas.Token:
-    print("point 1")
+    
     user = await authenticate_user(db, form_data.username, form_data.password)
-    print("username: ", user.username)
-    if not isinstance(user, User):
-        print("point 2")
+    if not user:
         raise HTTPException(status_code=400, detail="Incorrect username or password")
     access_token_expires = timedelta(
         minutes=int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))

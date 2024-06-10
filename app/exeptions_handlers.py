@@ -15,5 +15,10 @@ class InvalidFormatError(HTTPException):
 
 # raise HTTPException(status_code=404, detail="User not found")
 class NotFoundError(HTTPException):
-    def __init__(self, status_code: int = 404, detail: Any = "Not found") -> None:
+    def __init__(self, status_code: int = 404, detail: Any = "Not found.") -> None:
+        super().__init__(status_code, detail)
+
+
+class ConflictError(HTTPException):
+    def __init__(self, status_code:int = 409, detail:Any = "Conflict in input data.")->None:
         super().__init__(status_code, detail)

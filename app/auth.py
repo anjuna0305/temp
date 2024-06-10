@@ -12,7 +12,7 @@ from jwt.exceptions import InvalidTokenError
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.crud import get_user_by_username
+from app.crud import get_user_by_username_or_email, get_user_by_username
 from app.database import get_db
 from app.dependencies import verify_password, oauth2_scheme
 from app.models import User as UserModel
@@ -22,7 +22,7 @@ load_dotenv()
 
 
 async def authenticate_user(db: AsyncSession, username: str, password: str):
-    user = await get_user_by_username(db, username)
+    user = await get_user_by_username_or_email(db, username)
     if not isinstance(user, UserModel):
         return False
     if not verify_password(password, user.hashed_password):

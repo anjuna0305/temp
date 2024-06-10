@@ -1,4 +1,5 @@
 from dotenv import load_dotenv
+
 load_dotenv()
 
 from fastapi import FastAPI
@@ -12,14 +13,12 @@ from app.models import Base
 from app.routers.auth_router import router as auth_router
 from app.routers.test_router import router as test_router
 from app.routers.api_services_router import router as api_router
+from app.routers.users_router import router as user_router
 
 app = FastAPI()
 
 
-origins = [
-    "http://localhost:5173",
-    "http://localhost:*"
-]
+origins = ["http://localhost:5173", "http://localhost:*"]
 
 app.add_middleware(
     CORSMiddleware,
@@ -40,6 +39,6 @@ app.add_middleware(
 
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(test_router, prefix="/test", tags=["test"])
-# app.include_router(users.router, prefix="/users", tags=["users"])
+app.include_router(user_router, prefix="/users", tags=["users"])
 # app.include_router(admins.router, prefix="/admins", tags=["admins"])
 app.include_router(api_router, prefix="/api", tags=["api_services"])

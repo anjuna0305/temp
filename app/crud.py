@@ -1,5 +1,5 @@
 from passlib.context import CryptContext
-from sqlalchemy import or_
+from sqlalchemy import or_, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -11,7 +11,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # authenticate a user
 async def authenticate_user(db: AsyncSession, username: str, password: str):
-    user = get_user_by_username(db, username)
+    user = get_user_by_username_or_email(db, username)
     if not isinstance(user, schemas.User):
         return False
     if not verify_password(password, user.hashed_password):
@@ -34,9 +34,23 @@ async def get_user(db: AsyncSession, user_id: int):
 # get a user by username--------------------tested and copy inn test_router
 async def get_user_by_username(db: AsyncSession, username: str):
     result = await db.execute(
+        select(models.User).filter(or_(username == models.User.username))
+    )
+    return result.scalars().first()
+
+
+async def get_user_by_username_or_email(db: AsyncSession, username: str):
+    result = await db.execute(
         select(models.User).filter(
             or_(username == models.User.username, username == models.User.email)
         )
+    )
+    return result.scalars().first()
+
+
+async def get_user_by_email(db: AsyncSession, email: str):
+    result = await db.execute(
+        select(models.User).filter(or_(email == models.User.email))
     )
     return result.scalars().first()
 
@@ -80,13 +94,15 @@ async def get_api_services(db: AsyncSession, skip: int, limit: int):
 
 
 async def get_api_service_by_id(db: AsyncSession, api_id: int):
-    result = await db.execute(select(models.APIService).filter(api_id==models.APIService.id))
+    result = await db.execute(
+        select(models.APIService).filter(api_id == models.APIService.id)
+    )
     return result.scalars().first()
 
 
 async def get_api_service_by_name(db: AsyncSession, name: str):
     result = await db.execute(
-        select(models.APIService).filter(name==models.APIService.name)
+        select(models.APIService).filter(name == models.APIService.name)
     )
     return result.scalars().first()
 
@@ -152,6 +168,20 @@ async def get_user_api_services_by_userid_and_status(
         .filter(status == models.UserAPIService.status)
     )
     return result.scalars().all()
+
+
+async def get_user_api_services_by_userid_and_serviceid(
+    db: AsyncSession, user_id: int, api_service_id: int
+):
+    result = await db.execute(
+        select(models.UserAPIService).where(
+            and_(
+                user_id == models.UserAPIService.user_id,
+                api_service_id == models.UserAPIService.api_service_id,
+            )
+        )
+    )
+    return result.scalars().first()
 
 
 # get api services user allowed to use
