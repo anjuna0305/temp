@@ -6,9 +6,38 @@ from sqlalchemy.orm import Session
 from .. import schemas, crud, dependencies
 from app.database import get_db
 from app.auth import get_current_active_user
-from app.exeptions_handlers import NotFoundError, ConflictError, InternalServerError
+from app.exeptions_handlers import (
+    NotFoundError,
+    ConflictError,
+    InternalServerError,
+    BadRequestError,
+)
 
 router = APIRouter()
+
+
+@router.get("/access-request")
+async def send_api_access_request(
+    user_id: int = None,
+    api_service_id: int = None,
+    current_user: schemas.User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if user_id == None or api_service_id == None:
+        raise BadRequestError()
+
+    try:
+        api_request = await crud.get_user_api_services_by_userid_and_serviceid(
+            db, user_id, api_service_id
+        )
+    except:
+        raise InternalServerError()
+
+    if api_request:
+        raise ConflictError(
+            detail=f"Request already sent. Request status: {api_request.status}"
+        )
+    return api_request
 
 
 @router.post("/access-request")
@@ -27,9 +56,12 @@ async def send_api_access_request(
         raise InternalServerError
 
     if api_request:
-        raise ConflictError(detail=f"Request already sent. Request status: {api_request.status}")
+        raise ConflictError(
+            detail=f"Request already sent. Request status: {api_request.status}"
+        )
 
     try:
+        request_data.status = "pending"
         req = await crud.create_user_api_service(db, request_data)
         return req
     except Exception:

@@ -20,5 +20,12 @@ class NotFoundError(HTTPException):
 
 
 class ConflictError(HTTPException):
-    def __init__(self, status_code:int = 409, detail:Any = "Conflict in input data.")->None:
+    def __init__(
+        self, status_code: int = 409, detail: Any = "Conflict in input data."
+    ) -> None:
+        super().__init__(status_code, detail)
+
+
+class BadRequestError(HTTPException):
+    def __init__(self, status_code: int = 400, detail: Any = "Bad request.") -> None:
         super().__init__(status_code, detail)
