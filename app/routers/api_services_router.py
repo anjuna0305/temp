@@ -10,7 +10,7 @@ from app.database import get_db
 router = APIRouter()
 
 
-@router.get("/api-services/", response_model=List[schemas.APIService])
+@router.get("/api-services/")
 async def read_api_services(
     skip: int = 0, limit: int = 20, db: Session = Depends(get_db)
 ):

@@ -148,5 +148,67 @@ async def upload_service(
     if service_port:
         raise ConflictError("Port already in use.")
 
-    new_service = await crud.create_api_service(db, name, description, port, file_location)
+    new_service = await crud.create_api_service(
+        db, name, description, port, file_location
+    )
     return new_service
+
+
+@router.put("/services/{service_id}")
+async def update_service(
+    service_id: int,
+    name: str = Form(...),
+    port: int = Form(...),
+    description: str = Form(...),
+    documentation: UploadFile = File(None),
+    db: AsyncSession = Depends(get_db),
+):
+    
+    existing_service = await crud.get_api_service_by_id(db, service_id)
+    if not existing_service:
+        raise NotFoundError()
+
+    if name != existing_service.name:
+        service_name = await crud.get_api_service_by_name(db, name)
+        if service_name:
+            raise ConflictError("Service name already exists")
+
+    if port != existing_service.port:
+        service_port = await crud.get_api_service_by_port(db, port)
+        if service_port:
+            raise ConflictError("Port already in use")
+
+    if documentation:
+        file_location = f"files/{uuid.uuid4()}.md"
+        with open(file_location, "wb") as file_object:
+            shutil.copyfileobj(documentation.file, file_object)
+        existing_service.documentation = file_location
+
+    existing_service.name = name
+    existing_service.port = port
+    existing_service.description = description
+
+    await db.commit()
+    return existing_service
+
+
+@router.patch("/api/{api_id}/stop")
+async def stop_service(api_id: int, db: AsyncSession = Depends(get_db)):
+    api_service = await crud.get_api_service_by_id(db, api_id)
+    if not api_service:
+        raise NotFoundError()
+    api_service.is_active = False
+    await db.commit()
+    await db.refresh(api_service)
+    return api_service
+
+
+@router.patch("/api/{api_id}/start")
+async def stop_service(api_id: int, db: AsyncSession = Depends(get_db)):
+    api_service = await crud.get_api_service_by_id(db, api_id)
+    if not api_service:
+        raise NotFoundError()
+    api_service.is_active = True
+    await db.commit()
+    await db.refresh(api_service)
+    return api_service
