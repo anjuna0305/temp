@@ -52,7 +52,10 @@ class APIServiceBase(BaseModel):
 
 
 class APIServiceCreate(APIServiceBase):
-    pass
+    name : str
+    description :str
+    port :int
+    documentation : str
 
 
 class APIService(APIServiceBase):
@@ -61,6 +64,9 @@ class APIService(APIServiceBase):
     class Config:
         from_attributes = True  # Update to use from_attributes
 
+class UserAPIRequest(BaseModel):
+    user_id: int
+    api_service_id: int
 
 class UserAPIServiceBase(BaseModel):
     user_id: int

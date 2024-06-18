@@ -24,9 +24,10 @@ class User(Base):
 class APIService(Base):
     __tablename__ = "api_services"
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True)
+    name = Column(String, index=True, unique=True)
     description = Column(String)
-    md_link = Column(String)
+    port = Column(Integer)
+    documentation = Column(String)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
 
@@ -35,12 +36,15 @@ class APIService(Base):
 
 class UserAPIService(Base):
     __tablename__ = "user_api_services"
-    user_id = Column(Integer, ForeignKey('users.id'), primary_key=True)
-    api_service_id = Column(Integer, ForeignKey('api_services.id'), primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
+    api_service_id = Column(Integer, ForeignKey("api_services.id"), primary_key=True)
     status = Column(String)  # pending, approved, rejected
+    access = Column(Boolean, default=True)
     request_per_action = Column(Integer, default=120)
     created_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
-    exp_date = Column(DateTime(timezone=True), default=datetime.now(timezone.utc) + timedelta(days=30))
+    exp_date = Column(
+        DateTime(timezone=True), default=datetime.now(timezone.utc) + timedelta(days=30)
+    )
 
     user = relationship("User", back_populates="user_api_services")
     api_service = relationship("APIService", back_populates="user_api_services")
@@ -49,8 +53,8 @@ class UserAPIService(Base):
 class ActivityLog(Base):
     __tablename__ = "activity_logs"
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey('users.id'))
-    api_service_id = Column(Integer, ForeignKey('api_services.id'))
+    user_id = Column(Integer, ForeignKey("users.id"))
+    api_service_id = Column(Integer, ForeignKey("api_services.id"))
     action = Column(String)  # e.g., "requested access", "approved access"
     timestamp = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
     detail = Column(String)

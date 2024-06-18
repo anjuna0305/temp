@@ -74,7 +74,7 @@ async def read_system_status(current_user: User = Depends(get_current_user)):
     return current_user
 
 
-@router.get("/items")
+@router.get("/admin-token")
 async def read_own_items(
     current_user: User = Security(get_current_active_admin),
 ):

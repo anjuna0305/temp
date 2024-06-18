@@ -2,6 +2,7 @@ from passlib.context import CryptContext
 from sqlalchemy import or_, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from datetime import datetime, timedelta, timezone
 
 from app.dependencies import verify_password, get_password_hash
 from . import models, schemas
@@ -106,12 +107,22 @@ async def get_api_service_by_name(db: AsyncSession, name: str):
     )
     return result.scalars().first()
 
+async def get_api_service_by_port(db: AsyncSession, port: int):
+    result = await db.execute(
+        select(models.APIService).filter(port == models.APIService.port)
+    )
+    return result.scalars().first()
+
 
 # create an new api service
-async def create_api_service(db: AsyncSession, api_service: schemas.APIServiceCreate):
+async def create_api_service(
+    db: AsyncSession, name: str, description: str, port: int, file_location: str
+):
+
     db_api_service = models.APIService(
-        name=api_service.name, description=api_service.description
+        name=name, description=description, port=port, documentation=file_location
     )
+
     db.add(db_api_service)
     await db.commit()
     await db.refresh(db_api_service)
@@ -121,9 +132,30 @@ async def create_api_service(db: AsyncSession, api_service: schemas.APIServiceCr
 # get api services user allowed to use
 async def get_user_api_services_by_user_id(db: AsyncSession, user_id: int):
     result = await db.execute(
-        select(models.UserAPIService).filter(user_id == models.UserAPIService.user_id)
+        select(models.UserAPIService, models.APIService.name.label("api_service_name"))
+        .join(
+            models.APIService,
+            models.UserAPIService.api_service_id == models.APIService.id,
+        )
+        .filter(user_id == models.UserAPIService.user_id)
+        .filter("approved" == models.UserAPIService.status)
     )
-    return result.scalars().all()
+    results = result.all()
+
+    response = [
+        {
+            "api_service_id": user_api_service.UserAPIService.api_service_id,
+            "api_service_name": user_api_service.api_service_name,
+            "status": user_api_service.UserAPIService.status,
+            "access": user_api_service.UserAPIService.access,
+            "user_id": user_api_service.UserAPIService.user_id,
+            "request_per_action": user_api_service.UserAPIService.request_per_action,
+            "exp_date": user_api_service.UserAPIService.exp_date,
+        }
+        for user_api_service in results
+    ]
+
+    return response
 
 
 async def get_user_api_services_by_api_id(db: AsyncSession, api_id: int):
@@ -185,11 +217,113 @@ async def get_user_api_services_by_userid_and_serviceid(
 
 
 # get api services user allowed to use
-async def get_user_api_services_by_status(db: AsyncSession, status: str):
-    result = await db.execute(
-        select(models.UserAPIService).filter(status == models.UserAPIService.status)
+async def get_user_api_services_by_status(
+    db: AsyncSession, skip: int = 0, limit: int = 10, status: str = None
+):
+    query = (
+        select(
+            models.UserAPIService,
+            models.User.username,
+            models.APIService.name.label("api_service_name"),
+        )
+        .join(models.User, models.UserAPIService.user_id == models.User.id)
+        .join(
+            models.APIService,
+            models.UserAPIService.api_service_id == models.APIService.id,
+        )
+        .order_by(models.UserAPIService.created_at)
     )
-    return result.scalars().all()
+
+    if status:
+        query = query.filter(models.UserAPIService.status == status)
+
+    query = query.offset(skip).limit(limit)
+    result = await db.execute(query)
+    results = result.all()
+
+    response = [
+        {
+            "user_id": user_api_service.UserAPIService.user_id,
+            "api_service_id": user_api_service.UserAPIService.api_service_id,
+            "status": user_api_service.UserAPIService.status,
+            "request_per_action": user_api_service.UserAPIService.request_per_action,
+            "created_at": user_api_service.UserAPIService.created_at,
+            "exp_date": user_api_service.UserAPIService.exp_date,
+            "username": user_api_service.username,
+            "api_service_name": user_api_service.api_service_name,
+        }
+        for user_api_service in results
+    ]
+
+    return response
+
+
+async def approve_request(db: AsyncSession, user_id: int, api_service_id: int):
+    query = select(models.UserAPIService).filter_by(
+        user_id=user_id, api_service_id=api_service_id
+    )
+    result = await db.execute(query)
+    user_api_service = result.scalar_one_or_none()
+
+    if user_api_service is None:
+        raise ValueError(
+            f"No request found for user_id {user_id} and api_service_id {api_service_id}"
+        )
+
+    # Step 2: Update the status to "approved"
+    user_api_service.status = "approved"
+    user_api_service.exp_date = datetime.now(
+        user_api_service.created_at.tzinfo
+    ) + timedelta(days=30)
+
+    # Step 3: Add an entry to the ActivityLog
+    activity_log = models.ActivityLog(
+        user_id=user_id,
+        api_service_id=api_service_id,
+        action="approved access",
+        timestamp=datetime.now(user_api_service.created_at.tzinfo),
+        detail=f"Access request approved for user {user_id} to API service {api_service_id}",
+    )
+    db.add(activity_log)
+
+    # Commit the changes to the database
+    await db.commit()
+
+    return user_api_service
+
+
+async def reject_request(db: AsyncSession, user_id: int, api_service_id: int):
+    query = select(models.UserAPIService).filter_by(
+        user_id=user_id, api_service_id=api_service_id
+    )
+    result = await db.execute(query)
+    user_api_service = result.scalar_one_or_none()
+
+    if user_api_service is None:
+        raise ValueError(
+            f"No request found for user_id {user_id} and api_service_id {api_service_id}"
+        )
+
+    # Step 2: Update the status to "approved"
+    user_api_service.status = "rejected"
+    user_api_service.exp_date = datetime.now(
+        user_api_service.created_at.tzinfo
+    ) + timedelta(days=30)
+
+    # Step 3: Add an entry to the ActivityLog
+    activity_log = models.ActivityLog(
+        user_id=user_id,
+        api_service_id=api_service_id,
+        action="approved access",
+        timestamp=datetime.now(user_api_service.created_at.tzinfo),
+        detail=f"Access request approved for user {user_id} to API service {api_service_id}",
+    )
+    db.add(activity_log)
+
+    # Commit the changes to the database
+    await db.commit()
+
+    return user_api_service
 
 
 # assign a api service for a user
